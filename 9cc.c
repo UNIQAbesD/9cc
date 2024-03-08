@@ -24,6 +24,8 @@ struct Token
 
 //現在着目しているトークン
 Token *token;
+char *user_input;
+
 
 Token *new_token(TokenKind kind,Token *cur,char *str)
 {
@@ -41,6 +43,20 @@ void error(char *fmt, ...)
     va_start(ap,fmt);
     vfprintf(stderr,fmt,ap);
     fprintf(stderr,"\n");
+    exit(1);
+}
+
+
+void error_at(char *loc,char *fmt,...)
+{
+    va_list ap;
+    va_start(ap,fmt);
+
+    int pos =loc-user_input;
+    fprintf(stderr,"%s\n",user_input);
+    fprintf(stderr,"%*s",pos," ");
+    fprintf(stderr,"^");
+    fprintf(stderr,fmt,ap);
     exit(1);
 }
 
@@ -93,7 +109,7 @@ void expect(char op)
 {
     if(token->kind!=TOKEN_RESERVED||token->str[0]!=op)
     {
-        error("'%c'ではありません\n",op);
+        error_at(token->str,"'%c'ではありません\n",op);
     }
     token=token->next;
 }
@@ -102,7 +118,7 @@ int expect_number()
 {
     if(token->kind!=TOKEN_NUM)
     {
-        error("数ではありません\n");
+        error_at(token->str,"数ではありません\n");
     }
     int val=token->val;
     token=token->next;
@@ -119,6 +135,7 @@ int main(int argc,char **argv)
         fprintf(stderr,"引数の個数が正しくありません\n");
         return 1;
     }
+    user_input=argv[1];
     token=tokenize(argv[1]);
 
     printf(".intel_syntax noprefix\n");
