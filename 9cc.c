@@ -9,7 +9,7 @@ enum {
     TOKEN_RESERVED,
     TOKEN_NUM,
     TOKEN_EOF
-}typedef TokenKind;
+}typedef TokenKind;\
 
 typedef struct Token Token;
 
@@ -35,6 +35,44 @@ Token *new_token(TokenKind kind,Token *cur,char *str)
     tok->str=str;
     cur->next=tok;
     return tok;
+}
+
+
+
+
+typedef enum
+{
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_NUM,
+}NodeKind;
+
+typedef struct Node Node;
+
+struct Node
+{
+    NodeKind kind;
+    Node *lhs;
+    Node *rhs;
+    int val;
+};
+
+Node *new_node(NodeKind kind,Node *lhs,Node *rhs)
+{
+    Node *node=caloc(1,sizeof(Node));
+    node->kind=kind;
+    node->lhs=lhs;
+    node->rhs=rhs;
+    return node;
+}
+Node *new_node_num(int val)
+{
+    Node *node=calloc(1,sizeof(Node));
+    node->kind=ND_NUM;
+    node->val=val;
+    return node;
 }
 
 void error(char *fmt, ...)
