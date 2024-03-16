@@ -19,6 +19,7 @@ struct Token
     Token *next;
     int val;
     char *str;
+    int len;
 };
 
 
@@ -27,12 +28,13 @@ Token *token;
 char *user_input;
 
 
-Token *new_token(TokenKind kind,Token *cur,char *str)
+Token *new_token(TokenKind kind,Token *cur,char *str,int len)
 {
     Token *tok=calloc(1,sizeof(Token));
     tok->kind=kind;
     tok->next=NULL;
     tok->str=str;
+    tok->len=len;
     cur->next=tok;
     return tok;
 }
@@ -61,12 +63,13 @@ struct Node
 
 Node *new_node(NodeKind kind,Node *lhs,Node *rhs)
 {
-    Node *node=caloc(1,sizeof(Node));
+    Node *node=calloc(1,sizeof(Node));
     node->kind=kind;
     node->lhs=lhs;
     node->rhs=rhs;
     return node;
 }
+
 Node *new_node_num(int val)
 {
     Node *node=calloc(1,sizeof(Node));
@@ -74,6 +77,9 @@ Node *new_node_num(int val)
     node->val=val;
     return node;
 }
+
+
+
 
 void error(char *fmt, ...)
 {
@@ -83,6 +89,7 @@ void error(char *fmt, ...)
     fprintf(stderr,"\n");
     exit(1);
 }
+
 
 
 void error_at(char *loc,char *fmt,...)
@@ -110,20 +117,20 @@ Token *tokenize(char *p)
             p++;
             continue;
         }
-        if(*p=='+'||*p=='-')
+        if(*p=='+'||*p=='-'||*p=='*'||*p=='/'||*p=='('||*p==')')
         {
-            cur=new_token(TOKEN_RESERVED,cur,p++);
+            cur=new_token(TOKEN_RESERVED,cur,p++,1);
             continue;
         }
         if(isdigit(*p))
         {
-            cur=new_token(TOKEN_NUM,cur,p);
+            cur=new_token(TOKEN_NUM,cur,p,1);
             cur->val=strtol(p,&p,10);
             continue;
         }
-        error("トークナイズできません");
+        error("トークナイズできません:%s",p);
     }
-    new_token(TOKEN_EOF,cur,p);
+    new_token(TOKEN_EOF,cur,p,1);
     return head.next;
 }
 
@@ -132,9 +139,9 @@ bool at_eof()
     return token->kind==TOKEN_EOF;
 }
 
-bool consume(char op)
+bool consume(char *op)
 {
-    if(token->kind!=TOKEN_RESERVED||token->str[0]!=op)
+    if(token->kind!=TOKEN_RESERVED||strlen(op)!=token->len||memcmp(token->str,op,token->len))
     {
         return false;
     }
@@ -143,9 +150,9 @@ bool consume(char op)
     
 }
 
-void expect(char op)
+void expect(char *op)
 {
-    if(token->kind!=TOKEN_RESERVED||token->str[0]!=op)
+    if(token->kind!=TOKEN_RESERVED||strlen(op)!=token->len||memcmp(token->str,op,token->len))
     {
         error_at(token->str,"'%c'ではありません\n",op);
     }
@@ -164,6 +171,116 @@ int expect_number()
 }
 
 
+Node *expr();
+
+
+
+
+Node *primary()
+{
+    if(consume("("))
+    {
+        Node *node=expr();
+        expect(")");
+        return node;
+    }
+
+    return new_node_num(expect_number());
+}
+
+Node *unary()
+{
+    if(consume("+"))
+    {
+        return primary();
+    }
+    if(consume("-"))
+    {
+        return new_node(ND_SUB,new_node_num(0),primary());
+    }
+    return primary();
+}
+
+
+Node *mul()
+{
+    Node *node=primary();
+    for(;;)
+    {
+        if(consume("*"))
+        {
+            node = new_node(ND_MUL,node,primary());
+        }
+        else if(consume("/"))
+        {
+            node=new_node(ND_DIV,node,primary());
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+
+Node *expr()
+{
+    Node *node=mul();
+    for(;;)
+    {
+        if(consume("+"))
+        {
+            node = new_node(ND_ADD,node,mul());
+        }
+        else if(consume("-"))
+        {
+            node=new_node(ND_SUB,node,mul());
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+
+void gen(Node *node)
+{
+    if(node->kind==ND_NUM)
+    {
+        printf("  push %d\n",node->val);
+        return ;
+    }
+
+    gen(node->lhs);
+    gen(node->rhs);
+
+
+    printf("  pop rdi\n");
+    printf("  pop rax\n");
+
+
+    switch(node->kind)
+    {
+        case ND_ADD:
+            printf("  add rax, rdi\n");
+            break;
+        case ND_SUB:
+            printf("  sub rax, rdi\n");
+            break;
+        case ND_MUL:
+            printf("  imul rax, rdi\n");
+            break;
+        case ND_DIV:
+            printf("  cqo\n");
+            printf("  idiv rdi\n");
+
+            break;
+    }
+    printf("  push rax\n");
+
+}
+
 
 
 int main(int argc,char **argv)
@@ -175,24 +292,16 @@ int main(int argc,char **argv)
     }
     user_input=argv[1];
     token=tokenize(argv[1]);
+    Node *node=expr();
+
 
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
     printf("main:\n");
-    printf("   mov rax, %d\n",expect_number());
-    while(!at_eof())
-    {
-        if(consume('+'))
-        {
-            printf("   add rax, %d\n",expect_number());
-            continue;
-        }
 
-        expect('-');
-        printf("   sub rax, %d\n",expect_number());
-
-    }
-    printf("   ret\n");
+    gen(node);
+    printf("  pop rax\n");
+    printf("  ret\n");
     return 0;
        
 }
