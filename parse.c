@@ -70,7 +70,14 @@ Token *tokenize(char *p)
             p++;
             continue;
         }
-        if(*p=='+'||*p=='-'||*p=='*'||*p=='/'||*p=='('||*p==')')
+        if((p[0]=='!'&&p[1]=='=')||(p[0]=='='&&p[1]=='=')||(p[0]=='<'&&p[1]=='=')||(p[0]=='>'&&p[1]=='='))
+        {
+            
+            cur=new_token(TOKEN_RESERVED,cur,p,2);
+            p+=2;
+            continue;
+        }
+        if(*p=='>'||*p=='<'||*p=='+'||*p=='-'||*p=='*'||*p=='/'||*p=='('||*p==')')
         {
             cur=new_token(TOKEN_RESERVED,cur,p++,1);
             continue;
