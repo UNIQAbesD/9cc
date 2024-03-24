@@ -124,36 +124,80 @@ int expect_number()
 }
 
 
-Node *expr();
 
 
-
-
-Node *primary()
+Node *expr()
 {
-    if(consume("("))
-    {
-        Node *node=expr();
-        expect(")");
-        return node;
-    }
-
-    return new_node_num(expect_number());
+    return equality();
 }
 
-Node *unary()
+Node *equality()
 {
-    if(consume("+"))
+    Node *node =relational();
+    for(;;)
     {
-        return primary();
+        if(consume("=="))
+        {
+            node=new_node(ND_EQ,node,relational());
+        }
+        else if(consume("!="))
+        {
+            node=new_node(ND_EQ,node,relational());
+        }
+        else
+        {
+            return node;
+        }
     }
-    if(consume("-"))
-    {
-        return new_node(ND_SUB,new_node_num(0),primary());
-    }
-    return primary();
-}
+} 
 
+Node *relational()
+{
+    Node *node =add();
+    for(;;)
+    {
+        if(consume("<"))
+        {
+            node=new_node(ND_LESS,node,add());
+        }
+        else if(consume("<="))
+        {
+            node=new_node(ND_LESS_EQ,node,add());
+        }
+        else if(consume(">"))
+        {
+            node=new_node(ND_MORE,node,add());
+        }
+        else if(consume(">="))
+        {
+            node=new_node(ND_MORE_EQ,node,add());
+        }
+        else
+        {
+            return node;
+        }
+    }
+} 
+
+Node *add()
+{
+    Node *node=mul();
+    for(;;)
+    {
+        if(consume("+"))
+        {
+            node = new_node(ND_ADD,node,mul());
+        }
+        else if(consume("-"))
+        {
+            node=new_node(ND_SUB,node,mul());
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
 
 Node *mul()
 {
@@ -175,23 +219,34 @@ Node *mul()
     }
 }
 
-
-Node *expr()
+Node *unary()
 {
-    Node *node=mul();
-    for(;;)
+    if(consume("+"))
     {
-        if(consume("+"))
-        {
-            node = new_node(ND_ADD,node,mul());
-        }
-        else if(consume("-"))
-        {
-            node=new_node(ND_SUB,node,mul());
-        }
-        else
-        {
-            return node;
-        }
+        return primary();
     }
+    if(consume("-"))
+    {
+        return new_node(ND_SUB,new_node_num(0),primary());
+    }
+    return primary();
 }
+
+Node *primary()
+{
+    if(consume("("))
+    {
+        Node *node=expr();
+        expect(")");
+        return node;
+    }
+
+    return new_node_num(expect_number());
+}
+
+
+
+
+
+
+

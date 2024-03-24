@@ -35,6 +35,12 @@ typedef enum
     ND_MUL,
     ND_DIV,
     ND_NUM,
+    ND_EQ,
+    ND_NOTEQ,
+    ND_LESS,
+    ND_LESS_EQ,
+    ND_MORE,
+    ND_MORE_EQ,
 }NodeKind;
 
 typedef struct Node Node;
@@ -59,11 +65,13 @@ bool consume(char *op);
 void expect(char *op);
 int expect_number();
 
-
-Node *primary();
-Node *unary();
-Node *mul();
 Node *expr();
+Node* equality();
+Node *relational();
+Node *add();
+Node *mul();
+Node *unary();
+Node *primary();
 
 void gen(Node *node);
 
